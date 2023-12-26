@@ -5,9 +5,8 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
-import javax.crypto.SecretKey;
 
-import static com.example.excelProcessor.util.ConstantsParameters.SUPER_SECRET_KEY;
+import javax.crypto.SecretKey;
 
 @Component
 @ConfigurationProperties(prefix = "application.jwt")

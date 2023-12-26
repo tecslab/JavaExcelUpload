@@ -2,6 +2,7 @@ package com.example.excelProcessor.config;
 
 import com.example.excelProcessor.auth.ApplicationUserService;
 import com.example.excelProcessor.jwt.JwtConfig;
+import com.example.excelProcessor.jwt.JwtTokenVerifier;
 import com.example.excelProcessor.jwt.JwtUsernameAndPasswordAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

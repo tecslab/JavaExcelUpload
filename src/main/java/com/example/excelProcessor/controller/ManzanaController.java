@@ -54,6 +54,8 @@ public class ManzanaController {
     @PostMapping("/upload")
     public ResponseEntity<List<String>> handleFileUpload(@RequestParam("file") MultipartFile file) {
         List<String> rejectedKeys  = new ArrayList<>();
+        int batchSize = 1000;
+
         try {
             System.out.println("Se subió un archivo");
 
@@ -62,23 +64,23 @@ public class ManzanaController {
 
                 // Process header row and extract column names and positions
                 List<ColumnData> headers = processHeaderRow(sheet.getRow(0));
-                if (validateFormat(headers)){
-                    // Iterate through data rows
-                    for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                        if (sheet.getRow(rowIndex)!=null){ // to skip rows with no data
-                            RowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
-                            //System.out.println(rowData.toString());
-                            if (rowData.getClaveManzana()!=null & rowData.getClaveManzana()!=""){
-                                // to skip rows without a key or empty rows that were deleted by user in excel
-                                rejectedKeys = excelUploadService.updateDatabase(rowData.getClaveManzana(), rowData.getTasaRenta(),
-                                        rowData.getTipoRenta(), rowData.getValorSuelo(), rejectedKeys);
-                            }else{
-                                System.out.println("Valor sin clave de manzana en la fila " + rowIndex);
-                            }
+                if (!validateFormat(headers)) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(rejectedKeys);
+                }
+
+                // Iterate through data rows
+                for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                    if (sheet.getRow(rowIndex)!=null){ // to skip rows with no data
+                        RowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
+                        //System.out.println(rowData.toString());
+                        if (rowData.getClaveManzana()!=null & rowData.getClaveManzana()!=""){
+                            // to skip rows without a key or empty rows that were deleted by user in excel
+                            rejectedKeys = excelUploadService.updateDatabase(rowData.getClaveManzana(), rowData.getTasaRenta(),
+                                    rowData.getTipoRenta(), rowData.getValorSuelo(), rejectedKeys);
+                        }else{
+                            System.out.println("Valor sin clave de manzana en la fila " + rowIndex);
                         }
                     }
-                }else{
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(rejectedKeys);
                 }
             }
             System.out.println("Archivo procesado correctamente");

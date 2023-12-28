@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ExcelUploadService {
@@ -33,33 +34,41 @@ public class ExcelUploadService {
             clavesManzanas.add(claveManzana);
         }
 
-        List<Manzana> manzanasToUpdate = manzanaRepository.findBatchByClaveManzana(clavesManzanas);
+        List<Manzana> manzanasToUpdate = manzanaRepository.findBatchByClaveManzana(clavesManzanas);   // It won't get a null entity
+        // Entities are not retrieved in the same order that were searched
 
+        for (Manzana manzana : manzanasToUpdate) {
+            ManzanaRowData rowData = findManzanaRowData(rowDataList, manzana.getClaveManzana());
 
-        for (int i = 0; i < manzanasToUpdate.size(); i++) {
-            Manzana manzana = manzanasToUpdate.get(i);
-            ManzanaRowData rowData = rowDataList.get(i);
+            Double tasaRenta = rowData.getTasaRenta();
+            Integer tipoRenta = rowData.getTipoRenta();
+            Double valorSuelo = rowData.getValorSuelo();
 
-            if (manzana != null) {
-                Double tasaRenta = rowData.getTasaRenta();
-                Integer tipoRenta = rowData.getTipoRenta();
-                Double valorSuelo = rowData.getValorSuelo();
+            Double capIncorp = capIncorpService.calcularCapIncorp(rowData.getClaveManzana());
 
-                Double capIncorp = capIncorpService.calcularCapIncorp(rowData.getClaveManzana());
-
-                manzana.setTasaRenta(tasaRenta);
-                manzana.setTipoRenta(tipoRenta);
-                manzana.setValorSuelo(valorSuelo);
-                manzana.setCapitalIncorporado(capIncorp);
-            } else {
-                rejectedKeys.add(rowData.getClaveManzana());
-                System.out.println("Registro no encontrado en la Base de Datos. Clave Manzana: " + rowData.getClaveManzana());
-            }
+            manzana.setTasaRenta(tasaRenta);
+            manzana.setTipoRenta(tipoRenta);
+            manzana.setValorSuelo(valorSuelo);
+            manzana.setCapitalIncorporado(capIncorp);
         }
 
+        for (ManzanaRowData rowData : rowDataList) {
+            // reamaining claves are either wrong claves or duplicated, both are rejected
+            String claveManzana = rowData.getClaveManzana();
+            rejectedKeys.add(claveManzana);
+        }
         manzanaRepository.saveAll(manzanasToUpdate);
 
         return rejectedKeys;
+    }
+
+    private ManzanaRowData findManzanaRowData(List<ManzanaRowData> rowDataList, String claveManzana){
+        Optional<ManzanaRowData>  foundManzanaRow = rowDataList.stream()
+            .filter(manzanaRowData -> manzanaRowData.getClaveManzana().equals(claveManzana))
+            .findFirst();
+        foundManzanaRow.ifPresent(rowDataList::remove);
+
+        return foundManzanaRow.get();
     }
 
     public List<String> updatePredios(List<PredioRowData> rowDataList){

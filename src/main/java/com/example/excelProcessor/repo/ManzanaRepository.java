@@ -9,9 +9,8 @@ import java.util.List;
 
 // public interface ManzanaRepository extends JpaRepository<Manzana, Long> {
 public interface ManzanaRepository extends JpaRepository<Manzana, ManzanaId> {
-    List<Manzana> findByUsuarioIngreso(String usuarioIngreso);
     Manzana findByClaveManzana(String claveManzana);
 
-    @Query("SELECT m FROM Manzana m WHERE m.claveManzana IN :claveManzanas")
-    List<Manzana> findBatchByClaveManzana(@Param("claveManzanas") List<String> claveManzanas);
+    @Query("SELECT m FROM Manzana m WHERE m.claveManzana IN :clavesManzanas")
+    List<Manzana> findBatchByClaveManzana(@Param("clavesManzanas") List<String> clavesManzanas);
 }

@@ -26,29 +26,39 @@ public class ExcelUploadService {
 
     public List<String> updateManzanas(List<ManzanaRowData> rowDataList){
         List<String> rejectedKeys = new ArrayList<>();
+        List<String> clavesManzanas = new ArrayList<>();
 
         for (ManzanaRowData rowData : rowDataList) {
             String claveManzana = rowData.getClaveManzana();
-            Manzana manzana = manzanaRepository.findByClaveManzana(claveManzana);
+            clavesManzanas.add(claveManzana);
+        }
+
+        List<Manzana> manzanasToUpdate = manzanaRepository.findBatchByClaveManzana(clavesManzanas);
+
+
+        for (int i = 0; i < manzanasToUpdate.size(); i++) {
+            Manzana manzana = manzanasToUpdate.get(i);
+            ManzanaRowData rowData = rowDataList.get(i);
 
             if (manzana != null) {
                 Double tasaRenta = rowData.getTasaRenta();
                 Integer tipoRenta = rowData.getTipoRenta();
                 Double valorSuelo = rowData.getValorSuelo();
 
-                Double capIncorp = capIncorpService.calcularCapIncorp(claveManzana);
+                Double capIncorp = capIncorpService.calcularCapIncorp(rowData.getClaveManzana());
 
                 manzana.setTasaRenta(tasaRenta);
                 manzana.setTipoRenta(tipoRenta);
                 manzana.setValorSuelo(valorSuelo);
                 manzana.setCapitalIncorporado(capIncorp);
-
-                manzanaRepository.save(manzana);
             } else {
-                rejectedKeys.add(claveManzana);
-                System.out.println("Registro no encontrado en la Base de Datos. Clave Manzana: " + claveManzana);
+                rejectedKeys.add(rowData.getClaveManzana());
+                System.out.println("Registro no encontrado en la Base de Datos. Clave Manzana: " + rowData.getClaveManzana());
             }
         }
+
+        manzanaRepository.saveAll(manzanasToUpdate);
+
         return rejectedKeys;
     }
 

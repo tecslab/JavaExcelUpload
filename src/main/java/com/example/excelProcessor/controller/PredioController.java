@@ -1,7 +1,7 @@
 package com.example.excelProcessor.controller;
 
-import com.example.excelProcessor.model.Manzana;
-import com.example.excelProcessor.repo.ManzanaRepository;
+import com.example.excelProcessor.model.Predio;
+import com.example.excelProcessor.repo.PredioRepo;
 import com.example.excelProcessor.services.ExcelUploadService;
 import com.example.excelProcessor.util.*;
 import org.apache.poi.ss.usermodel.*;
@@ -18,37 +18,36 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-//@CrossOrigin(origins = "http://localhost:8081")
-//@CrossOrigin(origins = "null")
-@CrossOrigin(origins = "http://localhost:5173")
 @Controller
 @RequestMapping("/api")
-public class ManzanaController {
+public class PredioController {
 
     @Autowired
-    ManzanaRepository manzanaRepository;
+    PredioRepo predioRepository;
 
     @Autowired
     ExcelUploadService excelUploadService;
 
-    //@GetMapping("/manzanas/{id}")
-    @GetMapping("/manzanas/{zona}/{sector}/{manzana}")
-    public ResponseEntity<Manzana> getManzanaById(@PathVariable String zona,
-                                                  @PathVariable String sector,
-                                                  @PathVariable String manzana) {
-        System.out.println("Recuperando manzana....");
-        ManzanaId compositeKey = new ManzanaId(zona, sector, manzana);
+    @GetMapping("/predios/{zona}/{sector}/{manzana}/{predio}")
+    public ResponseEntity<Predio> getPredioById(@PathVariable String zona,
+                                                @PathVariable String sector,
+                                                @PathVariable String manzana,
+                                                @PathVariable String predio){
+        System.out.println("Reperando Predio");
 
-        Optional<Manzana> manzanaData = manzanaRepository.findById(compositeKey);
+        PredioId predioCompositeKey = new PredioId(zona, sector, manzana, predio);
 
-        if (manzanaData.isPresent()) {
-            return new ResponseEntity<>(manzanaData.get(), HttpStatus.OK);
-        } else {
+        Optional<Predio> predioEnt = predioRepository.findById(predioCompositeKey);
+
+        if (predioEnt.isPresent()){
+            return new ResponseEntity<>(predioEnt.get(), HttpStatus.OK);
+        }else{
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
 
-    @PostMapping("/upload")
+
+    @PostMapping("/predios/upload")
     public ResponseEntity<List<String>> handleFileUpload(@RequestParam("file") MultipartFile file) {
         List<String> rejectedKeys  = new ArrayList<>();
         int batchSize = 1000;
@@ -67,19 +66,19 @@ public class ManzanaController {
 
                 // Get batches of rowdata
                 int rowIndex = 1; // Skip the header row
-                List<ManzanaRowData> batch = new ArrayList<>();
+                List<PredioRowData> batch = new ArrayList<>();
                 while (rowIndex <= sheet.getLastRowNum()) {
                     if (sheet.getRow(rowIndex) != null) { // to skip rows with no data
-                        ManzanaRowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
-                        if (rowData.getClaveManzana() != null && !rowData.getClaveManzana().isEmpty()) {
+                        PredioRowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
+                        if (rowData.getClaveCatastral() != null && !rowData.getClaveCatastral().isEmpty()) {
                             // to skip rows without a key or empty rows that were deleted by the user in excel
                             batch.add(rowData);
                         } else {
-                            System.out.println("Valor sin clave de manzana en la fila " + rowIndex);
+                            System.out.println("Valor sin clave de catastral en la fila " + rowIndex);
                         }
                         // Process the batch when it reaches the specified size
                         if (batch.size() >= batchSize) {
-                            rejectedKeys.addAll(excelUploadService.updateManzanas(batch));
+                            rejectedKeys.addAll(excelUploadService.updatePredios(batch));
                             batch.clear();
                         }
                     }
@@ -88,12 +87,12 @@ public class ManzanaController {
 
                 // Process the remaining records in the last batch
                 if (!batch.isEmpty()) {
-                    rejectedKeys.addAll(excelUploadService.updateManzanas(batch));
+                    rejectedKeys.addAll(excelUploadService.updatePredios(batch));
                 }
             }
             System.out.println("Archivo procesado correctamente");
             return ResponseEntity.ok(rejectedKeys);
-        //} catch (IOException | InvalidFormatException e) {
+            //} catch (IOException | InvalidFormatException e) {
         } catch (IOException e) {
             e.printStackTrace();
             //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing the file.");
@@ -102,67 +101,56 @@ public class ManzanaController {
     }
 
     private boolean validateFormat(List<ColumnData> headers){
-        boolean tieneClaveManzana = false, tieneTasaRenta = false, tieneValorSuelo= false, tieneTipoRenta= false;
+        boolean tieneClaveCatastral = false, tieneValorUnitarioBase = false;
         for (int i = 0; i < headers.size(); i++) {
             String headerName = headers.get(i).getName();
             ExcelHeader header = ExcelHeader.fromHeaderName(headerName); // instance a Header if there exists
             if (header != null) {
                 switch (header) {
-                    case CLAVE_MANZANA:
-                        tieneClaveManzana = true;
+                    case CLAVE_CATASTRAL:
+                        tieneClaveCatastral = true;
                         break;
-                    case TASA_RENTA:
-                        tieneTasaRenta = true;
-                        break;
-                    case VALOR_SUELO:
-                        tieneValorSuelo = true;
-                        break;
-                    case TIPO_RENTA:
-                        tieneTipoRenta = true;
+                    case VALOR_UNITARIO_BASE:
+                        tieneValorUnitarioBase = true;
                         break;
                 }
             }
         }
-        return tieneClaveManzana & tieneTasaRenta & tieneValorSuelo & tieneTipoRenta;
+        return tieneClaveCatastral & tieneValorUnitarioBase;
     }
 
-    private ManzanaRowData processDataRow(Row dataRow, List<ColumnData> headers) {
+    private PredioRowData processDataRow(Row row, List<ColumnData> headers) {
         //Get data from excel cells and store it in RowData
-        ManzanaRowData rowData = new ManzanaRowData();
-        Iterator<Cell> cellIterator = dataRow.cellIterator();
+        PredioRowData rowData = new PredioRowData();
+        Iterator<Cell> cellIterator = row.cellIterator();
 
         while (cellIterator.hasNext()) {
             Cell cell = cellIterator.next();
             int columnIndex = cell.getColumnIndex();
             String headerName = headers.stream()
-                    .filter(header -> header.getPlace() == columnIndex)
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Column not found"))
-                    .getName();
+                .filter(header -> header.getPlace() == columnIndex)
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Column not found"))
+                .getName();
 
             ExcelHeader header = ExcelHeader.fromHeaderName(headerName); // instance a Header if there exists
 
             if (header!= null){
                 switch (header) {
-                    case CLAVE_MANZANA:
+                    case CLAVE_CATASTRAL:
                         if (cell.getCellType().equals(CellType.NUMERIC)){
-                            rowData.setClaveManzana( String.valueOf(cell.getNumericCellValue()) );
+                            rowData.setClaveCatastral( String.valueOf(cell.getNumericCellValue()) );
                         }else{
-                            rowData.setClaveManzana( cell.getStringCellValue());
+                            rowData.setClaveCatastral( cell.getStringCellValue());
                         }
                         break;
-                    case TASA_RENTA:
-                        rowData.setTasaRenta((double) cell.getNumericCellValue());
-                        break;
-                    case VALOR_SUELO:
-                        rowData.setValorSuelo((double) cell.getNumericCellValue());
-                        break;
-                    case TIPO_RENTA:
-                        rowData.setTipoRenta((int) cell.getNumericCellValue());
+                    case VALOR_UNITARIO_BASE:
+                        rowData.setValorUnitarioBase((double) cell.getNumericCellValue());
                         break;
                 }
             }
         }
         return rowData;
     }
+
 }

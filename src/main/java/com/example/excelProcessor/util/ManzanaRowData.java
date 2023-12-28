@@ -1,6 +1,6 @@
 package com.example.excelProcessor.util;
 
-public class RowData {
+public class ManzanaRowData {
     private String claveManzana;
     private Double tasaRenta;
     private Double valorSuelo;

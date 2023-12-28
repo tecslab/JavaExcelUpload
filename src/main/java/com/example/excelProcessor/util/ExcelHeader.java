@@ -2,10 +2,17 @@ package com.example.excelProcessor.util;
 
 public enum ExcelHeader {
 
+    // Usados En Manzanas
     CLAVE_MANZANA("codmanzana"),
     TASA_RENTA("Tasa de Renta"),
     VALOR_SUELO("Precio Unitario Base (m2)"),
-    TIPO_RENTA("Tipo de Renta");
+    TIPO_RENTA("Tipo de Renta"),
+
+    // Usados En Predios
+    CLAVE_CATASTRAL("clave"),
+    VALOR_UNITARIO_BASE("PUB");
+
+
 
     private String nombreEnExcel;
 

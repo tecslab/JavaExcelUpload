@@ -9,7 +9,7 @@ public class PredioRowData {
     }
 
     public void setClaveCatastral(String claveCatastral) {
-        this.claveCatastral = claveCatastral;
+        this.claveCatastral = claveCatastral.substring(0, 10);
     }
 
     public Double getValorUnitarioBase() {

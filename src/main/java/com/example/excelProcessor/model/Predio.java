@@ -68,7 +68,7 @@ public class Predio {
 
     public void setClaveCatastral(String claveCatastral) {
         // Sometimes claveCatastral has 3 extra zeros at final
-        this.claveCatastral = claveCatastral.substring(0, 3);
+        this.claveCatastral = claveCatastral.substring(0, 10);
     }
 
     public Double getValorUnitarioBase() {

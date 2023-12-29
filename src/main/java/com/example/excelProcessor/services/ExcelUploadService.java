@@ -9,6 +9,7 @@ import com.example.excelProcessor.util.PredioRowData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,7 @@ public class ExcelUploadService {
     @Autowired
     PredioRepo predioRepo;
 
+    @Transactional
     public List<String> updateManzanas(List<ManzanaRowData> rowDataList){
         List<String> rejectedKeys = new ArrayList<>();
         List<String> clavesManzanas = new ArrayList<>();
@@ -71,24 +73,42 @@ public class ExcelUploadService {
         return foundManzanaRow.get();
     }
 
-    public List<String> updatePredios(List<PredioRowData> rowDataList){
+    @Transactional
+    public List<String> updatePredios(List<PredioRowData> rowDataList){ // receives a batch
         List<String> rejectedKeys = new ArrayList<>();
+        List<String> clavesCatastrales = new ArrayList<>();
 
-        for (PredioRowData rowData : rowDataList) {
+        for (PredioRowData rowData : rowDataList){
             String claveCatastral = rowData.getClaveCatastral();
-            Predio predio = predioRepo.findByClaveCatastral(claveCatastral);
-
-            if (predio != null) {
-                Double valorUnitarioBase = rowData.getValorUnitarioBase();
-
-                predio.setValorUnitarioBase(valorUnitarioBase);
-
-                predioRepo.save(predio);
-            } else {
-                rejectedKeys.add(claveCatastral);
-                System.out.println("Registro no encontrado en la Base de Datos. Clave Catastral: " + claveCatastral);
-            }
+            clavesCatastrales.add(claveCatastral);
         }
+
+        List<Predio> prediosToUpdate = predioRepo.findBatchByClaveCatastral(clavesCatastrales);
+        // Entities are not retrieved in the same order that were searched
+
+        for (Predio predio : prediosToUpdate){
+            PredioRowData rowData = findPredioRowData(rowDataList, predio.getClaveCatastral());
+
+            Double valorUnitarioBase = rowData.getValorUnitarioBase();
+
+            predio.setValorUnitarioBase(valorUnitarioBase);
+        }
+        for (PredioRowData rowData : rowDataList) {
+            // reamaining claves are either wrong claves or duplicated, both are rejected
+            String claveCatastral = rowData.getClaveCatastral();
+            rejectedKeys.add(claveCatastral);
+        }
+        predioRepo.saveAll(prediosToUpdate);
+
         return rejectedKeys;
+    }
+
+    private PredioRowData findPredioRowData(List<PredioRowData> rowDataList, String claveCatastral){
+        // Get predio row Data and remove it from rowDataList
+        Optional<PredioRowData> foundPredioRow = rowDataList.stream()
+                .filter(predioRowData -> predioRowData.getClaveCatastral().equals(claveCatastral))
+                .findFirst();
+        foundPredioRow.ifPresent(rowDataList::remove);
+        return foundPredioRow.get();
     }
 }

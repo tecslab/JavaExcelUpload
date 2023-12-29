@@ -22,6 +22,8 @@ import java.util.Optional;
 @RequestMapping("/api")
 public class PredioController {
 
+    Integer processIdCounter = 1; // 0 when there is no process
+
     @Autowired
     PredioRepo predioRepository;
 
@@ -48,9 +50,9 @@ public class PredioController {
 
 
     @PostMapping("/predios/upload")
-    public ResponseEntity<List<String>> handleFileUpload(@RequestParam("file") MultipartFile file) {
-        List<String> rejectedKeys  = new ArrayList<>();
-        int batchSize = 1000;
+    public ResponseEntity<Integer> handleFileUpload(@RequestParam("file") MultipartFile file) {
+        Integer processId = processIdCounter;
+        processIdCounter++;
 
         try {
             System.out.println("Se subió un archivo");
@@ -58,45 +60,20 @@ public class PredioController {
             try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
                 Sheet sheet = workbook.getSheetAt(0);
 
-                // Process header row and extract column names and positions
                 List<ColumnData> headers = ExcelPreProcess.processHeaderRow(sheet.getRow(0));
                 if (!validateFormat(headers)) {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(rejectedKeys);
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(0);
                 }
-
-                // Get batches of rowdata
-                int rowIndex = 1; // Skip the header row
-                List<PredioRowData> batch = new ArrayList<>();
-                while (rowIndex <= sheet.getLastRowNum()) {
-                    if (sheet.getRow(rowIndex) != null) { // to skip rows with no data
-                        PredioRowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
-                        if (rowData.getClaveCatastral() != null && !rowData.getClaveCatastral().isEmpty()) {
-                            // to skip rows without a key or empty rows that were deleted by the user in excel
-                            batch.add(rowData);
-                        } else {
-                            System.out.println("Valor sin clave de catastral en la fila " + rowIndex);
-                        }
-                        // Process the batch when it reaches the specified size
-                        if (batch.size() >= batchSize) {
-                            rejectedKeys.addAll(excelUploadService.updatePredios(batch));
-                            batch.clear();
-                        }
-                    }
-                    rowIndex++;
-                }
-
-                // Process the remaining records in the last batch
-                if (!batch.isEmpty()) {
-                    rejectedKeys.addAll(excelUploadService.updatePredios(batch));
-                }
+                excelUploadService.asyncUpdatePredios(sheet, headers);
+                System.out.println("Se inició proceso asyncrono");
+                return ResponseEntity.ok(processId);
+                // run asyc process
             }
-            System.out.println("Archivo procesado correctamente");
-            return ResponseEntity.ok(rejectedKeys);
-            //} catch (IOException | InvalidFormatException e) {
+        //} catch (IOException | InvalidFormatException e) {
         } catch (IOException e) {
             e.printStackTrace();
             //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing the file.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(rejectedKeys);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(0);
         }
     }
 
@@ -117,40 +94,6 @@ public class PredioController {
             }
         }
         return tieneClaveCatastral & tieneValorUnitarioBase;
-    }
-
-    private PredioRowData processDataRow(Row row, List<ColumnData> headers) {
-        //Get data from excel cells and store it in RowData
-        PredioRowData rowData = new PredioRowData();
-        Iterator<Cell> cellIterator = row.cellIterator();
-
-        while (cellIterator.hasNext()) {
-            Cell cell = cellIterator.next();
-            int columnIndex = cell.getColumnIndex();
-            String headerName = headers.stream()
-                .filter(header -> header.getPlace() == columnIndex)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Column not found"))
-                .getName();
-
-            ExcelHeader header = ExcelHeader.fromHeaderName(headerName); // instance a Header if there exists
-
-            if (header!= null){
-                switch (header) {
-                    case CLAVE_CATASTRAL:
-                        if (cell.getCellType().equals(CellType.NUMERIC)){
-                            rowData.setClaveCatastral( String.valueOf(cell.getNumericCellValue()) );
-                        }else{
-                            rowData.setClaveCatastral( cell.getStringCellValue());
-                        }
-                        break;
-                    case VALOR_UNITARIO_BASE:
-                        rowData.setValorUnitarioBase((double) cell.getNumericCellValue());
-                        break;
-                }
-            }
-        }
-        return rowData;
     }
 
 }

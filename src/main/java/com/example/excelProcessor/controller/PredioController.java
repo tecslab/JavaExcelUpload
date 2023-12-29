@@ -30,12 +30,15 @@ public class PredioController {
     @Autowired
     ExcelUploadService excelUploadService;
 
+    @Autowired
+    StatusHolder statusHolder;
+
     @GetMapping("/predios/{zona}/{sector}/{manzana}/{predio}")
     public ResponseEntity<Predio> getPredioById(@PathVariable String zona,
                                                 @PathVariable String sector,
                                                 @PathVariable String manzana,
                                                 @PathVariable String predio){
-        System.out.println("Reperando Predio");
+        System.out.println("Recuperando Predio");
 
         PredioId predioCompositeKey = new PredioId(zona, sector, manzana, predio);
 
@@ -51,7 +54,7 @@ public class PredioController {
 
     @PostMapping("/predios/upload")
     public ResponseEntity<Integer> handleFileUpload(@RequestParam("file") MultipartFile file) {
-        Integer processId = processIdCounter;
+        Integer jobId = processIdCounter;
         processIdCounter++;
 
         try {
@@ -64,9 +67,9 @@ public class PredioController {
                 if (!validateFormat(headers)) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(0);
                 }
-                excelUploadService.asyncUpdatePredios(sheet, headers);
+                excelUploadService.asyncUpdatePredios(sheet, headers, jobId);
                 System.out.println("Se inició proceso asyncrono");
-                return ResponseEntity.ok(processId);
+                return ResponseEntity.ok(jobId);
                 // run asyc process
             }
         //} catch (IOException | InvalidFormatException e) {
@@ -75,6 +78,21 @@ public class PredioController {
             //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing the file.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(0);
         }
+    }
+
+    /*@GetMapping("/predios/get-job-status/{jobId}/")
+    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId) {
+        // Retrieve the processing status
+        System.out.println(jobId);
+        StatusObject status = statusHolder.getStatus(jobId);
+        return ResponseEntity.ok(status);
+    }*/
+
+    @GetMapping("/predios/get-job-status/{jobId}")
+    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId){        // Retrieve the processing status
+    //public ResponseEntity<String> getProcessingStatus(@PathVariable String jobId) {
+        StatusObject status = statusHolder.getStatus(jobId);
+        return ResponseEntity.ok(status);
     }
 
     private boolean validateFormat(List<ColumnData> headers){
@@ -95,5 +113,4 @@ public class PredioController {
         }
         return tieneClaveCatastral & tieneValorUnitarioBase;
     }
-
 }

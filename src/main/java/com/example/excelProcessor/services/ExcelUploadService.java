@@ -24,6 +24,9 @@ import java.util.Optional;
 public class ExcelUploadService {
 
     @Autowired
+    StatusHolder statusHolder;
+
+    @Autowired
     private ManzanaRepository manzanaRepository;
 
     @Autowired
@@ -85,9 +88,11 @@ public class ExcelUploadService {
     /* ---------------------------------------------*/
 
     @Async
-    public List<String> asyncUpdatePredios(Sheet sheet, List<ColumnData> headers){
+    public List<String> asyncUpdatePredios(Sheet sheet, List<ColumnData> headers, Integer jobId){
         List<String> rejectedKeys  = new ArrayList<>();
         int batchSize = 1000;
+        StatusObject status = new StatusObject();
+        statusHolder.setStatus(jobId, status);
 
         try {
             // Get batches of rowdata
@@ -114,6 +119,10 @@ public class ExcelUploadService {
             if (!batch.isEmpty()) {
                 rejectedKeys.addAll(updatePredios(batch));
             }
+            System.out.println("Se procesó el archivo exitosamente");
+            status.setStatusDescription("Complete");
+            status.setRejectedKeys(rejectedKeys);
+            statusHolder.setStatus(jobId, status);
         }catch (Error e) {
             e.printStackTrace();
         }

@@ -2,7 +2,7 @@ package com.example.excelProcessor.controller;
 
 import com.example.excelProcessor.model.Predio;
 import com.example.excelProcessor.repo.PredioRepo;
-import com.example.excelProcessor.services.ExcelUploadService;
+import com.example.excelProcessor.services.PredioProcessingService;
 import com.example.excelProcessor.util.*;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,16 +20,13 @@ import java.util.Optional;
 @RequestMapping("/api")
 public class PredioController {
 
-    Integer processIdCounter = 1; // 0 when there is no process
+    private Integer processIdCounter = 500; // begin in 500 to avoid overlap with manzanas
 
     @Autowired
     PredioRepo predioRepository;
 
     @Autowired
-    ExcelUploadService excelUploadService;
-
-    @Autowired
-    StatusHolder statusHolder;
+    PredioProcessingService predioProcessingService;
 
     @GetMapping("/predios/{zona}/{sector}/{manzana}/{predio}")
     public ResponseEntity<Predio> getPredioById(@PathVariable String zona,
@@ -58,7 +53,7 @@ public class PredioController {
         processIdCounter++;
 
         try {
-            System.out.println("Se subió un archivo");
+            System.out.println("Se subió un archivo de Predios");
 
             try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
                 Sheet sheet = workbook.getSheetAt(0);
@@ -67,7 +62,7 @@ public class PredioController {
                 if (!validateFormat(headers)) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(0);
                 }
-                excelUploadService.asyncUpdatePredios(sheet, headers, jobId);
+                predioProcessingService.asyncUpdatePredios(sheet, headers, jobId);
                 System.out.println("Se inició proceso asyncrono");
                 return ResponseEntity.ok(jobId);
                 // run asyc process
@@ -75,24 +70,8 @@ public class PredioController {
         //} catch (IOException | InvalidFormatException e) {
         } catch (IOException e) {
             e.printStackTrace();
-            //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing the file.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(0);
         }
-    }
-
-    /*@GetMapping("/predios/get-job-status/{jobId}/")
-    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId) {
-        // Retrieve the processing status
-        System.out.println(jobId);
-        StatusObject status = statusHolder.getStatus(jobId);
-        return ResponseEntity.ok(status);
-    }*/
-
-    @GetMapping("/predios/get-job-status/{jobId}")
-    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId){        // Retrieve the processing status
-    //public ResponseEntity<String> getProcessingStatus(@PathVariable String jobId) {
-        StatusObject status = statusHolder.getStatus(jobId);
-        return ResponseEntity.ok(status);
     }
 
     private boolean validateFormat(List<ColumnData> headers){

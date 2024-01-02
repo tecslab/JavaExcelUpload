@@ -2,7 +2,7 @@ package com.example.excelProcessor.controller;
 
 import com.example.excelProcessor.model.Manzana;
 import com.example.excelProcessor.repo.ManzanaRepository;
-import com.example.excelProcessor.services.ExcelUploadService;
+import com.example.excelProcessor.services.ManzanasProcessingService;
 import com.example.excelProcessor.util.*;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,11 +23,13 @@ import java.util.Optional;
 @RequestMapping("/api")
 public class ManzanaController {
 
+    private Integer processIdCounter = 1;
+
     @Autowired
     ManzanaRepository manzanaRepository;
 
     @Autowired
-    ExcelUploadService excelUploadService;
+    ManzanasProcessingService manzanasProcessingService;
 
     //@GetMapping("/manzanas/{id}")
     @GetMapping("/manzanas/{zona}/{sector}/{manzana}")
@@ -49,55 +49,28 @@ public class ManzanaController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<List<String>> handleFileUpload(@RequestParam("file") MultipartFile file) {
-        List<String> rejectedKeys  = new ArrayList<>();
-        int batchSize = 1000;
+    public ResponseEntity<Integer> handleFileUpload(@RequestParam("file") MultipartFile file) {
+        Integer jobId = processIdCounter;
+        processIdCounter++;
 
         try {
-            System.out.println("Se subió un archivo");
+            System.out.println("Se subió un archivo de Manzanas");
 
             try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
                 Sheet sheet = workbook.getSheetAt(0);
 
-                // Process header row and extract column names and positions
                 List<ColumnData> headers = ExcelPreProcess.processHeaderRow(sheet.getRow(0));
                 if (!validateFormat(headers)) {
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(rejectedKeys);
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(0);
                 }
-
-                // Get batches of rowdata
-                int rowIndex = 1; // Skip the header row
-                List<ManzanaRowData> batch = new ArrayList<>();
-                while (rowIndex <= sheet.getLastRowNum()) {
-                    if (sheet.getRow(rowIndex) != null) { // to skip rows with no data
-                        ManzanaRowData rowData = processDataRow(sheet.getRow(rowIndex), headers);
-                        if (rowData.getClaveManzana() != null && !rowData.getClaveManzana().isEmpty()) {
-                            // to skip rows without a key or empty rows that were deleted by the user in excel
-                            batch.add(rowData);
-                        } else {
-                            System.out.println("Valor sin clave de manzana en la fila " + rowIndex);
-                        }
-                        // Process the batch when it reaches the specified size
-                        if (batch.size() >= batchSize) {
-                            rejectedKeys.addAll(excelUploadService.updateManzanas(batch));
-                            batch.clear();
-                        }
-                    }
-                    rowIndex++;
-                }
-
-                // Process the remaining records in the last batch
-                if (!batch.isEmpty()) {
-                    rejectedKeys.addAll(excelUploadService.updateManzanas(batch));
-                }
+                manzanasProcessingService.processManzanas(sheet, headers, jobId);
+                System.out.println("Se inició proceso asyncrono");
+                return ResponseEntity.ok(jobId);
             }
-            System.out.println("Archivo procesado correctamente");
-            return ResponseEntity.ok(rejectedKeys);
-        //} catch (IOException | InvalidFormatException e) {
+            //} catch (IOException | InvalidFormatException e) {
         } catch (IOException e) {
             e.printStackTrace();
-            //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing the file.");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(rejectedKeys);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(0);
         }
     }
 
@@ -126,43 +99,5 @@ public class ManzanaController {
         return tieneClaveManzana & tieneTasaRenta & tieneValorSuelo & tieneTipoRenta;
     }
 
-    private ManzanaRowData processDataRow(Row dataRow, List<ColumnData> headers) {
-        //Get data from excel cells and store it in RowData
-        ManzanaRowData rowData = new ManzanaRowData();
-        Iterator<Cell> cellIterator = dataRow.cellIterator();
 
-        while (cellIterator.hasNext()) {
-            Cell cell = cellIterator.next();
-            int columnIndex = cell.getColumnIndex();
-            String headerName = headers.stream()
-                    .filter(header -> header.getPlace() == columnIndex)
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Column not found"))
-                    .getName();
-
-            ExcelHeader header = ExcelHeader.fromHeaderName(headerName); // instance a Header if there exists
-
-            if (header!= null){
-                switch (header) {
-                    case CLAVE_MANZANA:
-                        if (cell.getCellType().equals(CellType.NUMERIC)){
-                            rowData.setClaveManzana( String.valueOf(cell.getNumericCellValue()) );
-                        }else{
-                            rowData.setClaveManzana( cell.getStringCellValue());
-                        }
-                        break;
-                    case TASA_RENTA:
-                        rowData.setTasaRenta((double) cell.getNumericCellValue());
-                        break;
-                    case VALOR_SUELO:
-                        rowData.setValorSuelo((double) cell.getNumericCellValue());
-                        break;
-                    case TIPO_RENTA:
-                        rowData.setTipoRenta((int) cell.getNumericCellValue());
-                        break;
-                }
-            }
-        }
-        return rowData;
-    }
 }

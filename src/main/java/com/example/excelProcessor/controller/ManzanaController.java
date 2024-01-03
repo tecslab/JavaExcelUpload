@@ -18,18 +18,21 @@ import java.util.Optional;
 
 //@CrossOrigin(origins = "http://localhost:8081")
 //@CrossOrigin(origins = "null")
-@CrossOrigin(origins = "http://localhost:5173")
+//@CrossOrigin(origins = "http://localhost:5173")
 @Controller
 @RequestMapping("/api")
 public class ManzanaController {
 
     private Integer processIdCounter = 1;
 
-    @Autowired
-    ManzanaRepository manzanaRepository;
+    private final ManzanaRepository manzanaRepository;
+    private final ManzanasProcessingService manzanasProcessingService;
 
     @Autowired
-    ManzanasProcessingService manzanasProcessingService;
+    public ManzanaController(ManzanaRepository manzanaRepository, ManzanasProcessingService manzanasProcessingService) {
+        this.manzanaRepository = manzanaRepository;
+        this.manzanasProcessingService = manzanasProcessingService;
+    }
 
     //@GetMapping("/manzanas/{id}")
     @GetMapping("/manzanas/{zona}/{sector}/{manzana}")

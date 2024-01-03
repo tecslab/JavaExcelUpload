@@ -13,8 +13,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/api")
 public class JobsController {
 
+   private final StatusHolder statusHolder;
+
    @Autowired
-   StatusHolder statusHolder;
+   public JobsController(StatusHolder statusHolder) {
+      this.statusHolder = statusHolder;
+   }
 
    @GetMapping("/jobs/get-job-status/{jobId}")
    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId){

@@ -22,11 +22,14 @@ public class PredioController {
 
     private Integer processIdCounter = 500; // begin in 500 to avoid overlap with manzanas
 
-    @Autowired
-    PredioRepo predioRepository;
+    private final PredioRepo predioRepository;
+    private final PredioProcessingService predioProcessingService;
 
     @Autowired
-    PredioProcessingService predioProcessingService;
+    public PredioController(PredioRepo predioRepository, PredioProcessingService predioProcessingService) {
+        this.predioRepository = predioRepository;
+        this.predioProcessingService = predioProcessingService;
+    }
 
     @GetMapping("/predios/{zona}/{sector}/{manzana}/{predio}")
     public ResponseEntity<Predio> getPredioById(@PathVariable String zona,

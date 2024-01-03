@@ -1,5 +1,6 @@
-package com.example.excelProcessor.jwt;
+package com.example.excelProcessor.config;
 
+import com.example.excelProcessor.jwt.JwtConfig;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

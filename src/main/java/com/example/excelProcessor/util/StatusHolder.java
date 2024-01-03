@@ -16,4 +16,8 @@ public class StatusHolder {
     public void setStatus(Integer jobId, StatusObject status) {
         statusMap.put(jobId, status);
     }
+
+    public void removeJobStatus(Integer jobId) {
+        statusMap.remove(jobId);
+    }
 }

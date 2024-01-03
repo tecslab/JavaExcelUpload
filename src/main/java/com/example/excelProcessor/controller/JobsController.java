@@ -20,6 +20,9 @@ public class JobsController {
    public ResponseEntity<StatusObject> getProcessingStatus(@PathVariable Integer jobId){
       // Retrieve the processing status
       StatusObject status = statusHolder.getStatus(jobId);
+      if (status.getStatusDescription().equals("Complete")){
+         statusHolder.removeJobStatus(jobId);
+      }
       return ResponseEntity.ok(status);
    }
 }

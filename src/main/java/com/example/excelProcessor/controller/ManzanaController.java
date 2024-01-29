@@ -51,7 +51,7 @@ public class ManzanaController {
         }
     }
 
-    @PostMapping("/upload")
+    @PostMapping("/manzanas/upload")
     public ResponseEntity<Integer> handleFileUpload(@RequestParam("file") MultipartFile file) {
         Integer jobId = processIdCounter;
         processIdCounter++;

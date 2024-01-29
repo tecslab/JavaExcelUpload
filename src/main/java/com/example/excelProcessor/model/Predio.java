@@ -68,11 +68,11 @@ public class Predio {
 
     public void setClaveCatastral(String claveCatastral) {
         // Sometimes claveCatastral has 3 extra zeros at final
-        String processedClave = claveCatastral;
-        if (processedClave.length()==13){
-            processedClave = processedClave.substring(0, 10);
-        }else if (processedClave.length()>13){
-            processedClave = processedClave.substring(0, 12);
+        String processedClave;
+        if (claveCatastral.endsWith("000")) {
+            processedClave = claveCatastral.substring(0, claveCatastral.length() - 3);
+        } else {
+            processedClave = claveCatastral;
         }
         this.claveCatastral = processedClave;
     }
